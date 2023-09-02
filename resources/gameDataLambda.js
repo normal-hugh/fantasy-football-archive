@@ -61,7 +61,7 @@ export const handler = async (event) => {
       19: ${stringArray[19]}\n
       20: ${stringArray[20]}\n
     `)
-    const gameLog = (strArr, startingEntry = 0) => {
+    const gameLog = (strArr, startingEntry = 0, game = {}, gameNumber = 1) => {
       let entry = startingEntry; // column counter
       let teamA = {};
 
@@ -139,10 +139,20 @@ export const handler = async (event) => {
       console.log(`teamB with bench: ${JSON.stringify(teamB)}`);
       entry += 2;
 
-      return {
-        teamA,
-        teamB
+      const fullGameLog = {
+        ...game,
+        [gameNumber]: {
+          teamA,
+          teamB
+        }
       }
+
+      if (strArr[entry + 52]) {
+        console.log(JSON.stringify(fullGameLog))
+        return gameLog(strArr, entry, fullGameLog, gameNumber + 1)
+      }
+      console.log(JSON.stringify(fullGameLog))
+      return fullGameLog;
 
     }
 
