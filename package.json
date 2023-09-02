@@ -1,20 +1,23 @@
 {
-  "name": "ffapp",
+  "name": "cdk-poc",
   "version": "0.1.0",
   "bin": {
-    "ffapp": "bin/ffapp.js"
+    "cdk-init": "bin/cdk-init.js"
   },
+  "type": "module",
   "scripts": {
     "build": "echo \"The build step is not required when using JavaScript!\" && exit 0",
     "cdk": "cdk",
     "test": "jest"
   },
   "devDependencies": {
-    "aws-cdk": "2.93.0",
-    "jest": "^29.6.3"
+    "aws-cdk": "2.94.0",
+    "jest": "^29.6.4"
   },
   "dependencies": {
-    "aws-cdk-lib": "2.93.0",
+    "@aws-sdk/client-dynamodb": "^3.405.0",
+    "@aws-sdk/client-s3": "^3.405.0",
+    "aws-cdk-lib": "2.94.0",
     "constructs": "^10.0.0"
   }
 }
