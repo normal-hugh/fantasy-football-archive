@@ -16,7 +16,7 @@
     "@aws-sdk/client-dynamodb": "^3.405.0",
     "@aws-sdk/client-s3": "^3.405.0",
     "aws-cdk-lib": "2.94.0",
-    "csv-parse": "^5.5.0",
+    "csv": "^6.3.3",
     "esbuild": "^0.19.2"
   }
 }
