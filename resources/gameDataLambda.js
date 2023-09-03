@@ -1,4 +1,4 @@
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 // import { parse } from "csv-parse/sync";
 // import fs from 'fs';
 
@@ -16,7 +16,6 @@ export const handler = async (event) => {
   console.log(`fileName: ${fileName}`);
 
   if (fileName.includes('.csv')) {
-    console.log('STAGE 1');
     const params = {
       Key: fileName,
       Bucket: bucketName
@@ -40,87 +39,99 @@ export const handler = async (event) => {
 
     const objectContent = await streamToString(response.Body);
     console.log(`Object content: ${objectContent}`);
-    console.log(`Object content: ${typeof objectContent}`);
 
     const stringArray = objectContent.split(',');
+    console.log(stringArray.map((val, i) => `${i}: ${val}`));
+
     const gameLog = (strArr, startingEntry = 0, game = {}, gameNumber = 1) => {
       let entry = startingEntry; // column counter
       let teamA = {};
 
-      const adjTeamName = entry !== 0
-        ? strArr[entry]
-        : strArr[entry].split('\r')[1].split('\n')[1];
+      console.log(`NEW ENTRY: ${entry}, ${strArr[entry]}`)
+
+      const adjTeamAName = entry !== 0
+        ? strArr[entry].split('\r')[1].split('\n')[1]
+        : strArr[entry]
       teamA.name = {
-        value: adjTeamName
+        value: adjTeamAName
       };
       entry += 8;
 
       // team A starting lineup 
       while (!strArr[entry].includes('Points:')) {
-        const position = strArr[entry].split('\n')[1].replace('W/R', 'Flex')
+        const position = strArr[entry].includes('\n') ? strArr[entry].split('\n')[1].replace('W/R', 'Flex') : '';
         const adjPosition = teamA[`teamA${position}`] ? `teamA${position}2` : `teamA${position}`;
         teamA[adjPosition] = {
           player: strArr[entry + 1],
           points: parseFloat(strArr[entry + 2].split('\n')[0].split('\r')[0])
         }
         entry += 2
-        if (teamA.length > 1000) {
-          break;
-        }
       }
 
       entry += 8;
 
       // team A bench 
-      let teamABenchCount = 1
+      let teamABenchCount = 1;
+      let teamARESCount = 1;
       while (!strArr[entry].includes('Points:')) {
-        teamA[`teamA${strArr[entry].split('\r')[1].split('\n')[1]}${teamABenchCount}`] = {
+        const position = strArr[entry].split('\r')[1].split('\n')[1];
+        let adjPosition = '';
+        if (position === 'BN') {
+          adjPosition = `teamABN${teamABenchCount}`
+          teamABenchCount++;
+        } else {
+          adjPosition = `teamARES${teamARESCount}`
+          teamARESCount++;
+        }
+        teamA[adjPosition] = {
           player: strArr[entry + 1],
           points: parseFloat(strArr[entry + 2].split('\n')[0].split('\r')[0])
         }
         entry += 2
-        teamABenchCount += 1;
-        if (teamA.length > 1000) {
-          break;
-        }
       }
       entry += 2;
 
       let teamB = {};
 
+      const adjTeamBName = entry !== 0
+        ? strArr[entry].split('\r')[1].split('\n')[1]
+        : strArr[entry]
       teamB.name = {
-        value: strArr[entry]
+        value: adjTeamBName
       };
       entry += 8;
 
       // team B starting lineup 
       while (!strArr[entry].includes('Points:')) {
-        const position = strArr[entry].split('\n')[1].replace('W/R', 'Flex')
+        const position = strArr[entry].includes('\n') ? strArr[entry].split('\n')[1].replace('W/R', 'Flex') : '';
         const adjPosition = teamB[`teamB${position}`] ? `teamB${position}2` : `teamB${position}`;
         teamB[adjPosition] = {
           player: strArr[entry + 1],
           points: parseFloat(strArr[entry + 2].split('\n')[0].split('\r')[0])
         }
         entry += 2
-        if (teamB.length > 1000) {
-          break;
-        }
       }
 
       entry += 8;
 
       // team B bench 
       let teamBBenchCount = 1
+      let teamBRESCount
       while (!strArr[entry].includes('Points:')) {
-        teamB[`teamB${strArr[entry].split('\r')[1].split('\n')[1]}${teamBBenchCount}`] = {
+        const position = strArr[entry].split('\r')[1].split('\n')[1];
+        let adjPosition = '';
+        if (position === 'BN') {
+          adjPosition = `teamBBN${teamBBenchCount}`
+          teamBBenchCount++;
+        } else {
+          adjPosition = `teamBRES${teamBRESCount}`
+          teamBRESCount++;
+        }
+        teamB[adjPosition] = {
           player: strArr[entry + 1],
           points: parseFloat(strArr[entry + 2].split('\n')[0].split('\r')[0])
         }
         entry += 2
-        teamBBenchCount += 1;
-        if (teamB.length > 1000) {
-          break;
-        }
       }
       entry += 2;
 
@@ -141,29 +152,23 @@ export const handler = async (event) => {
 
     }
 
-    console.log(`Game Log: ${JSON.stringify(gameLog(stringArray))}`);
+    const finalGameLog = JSON.stringify(gameLog(stringArray))
 
-    /**
-     * 3 rows 52 columns
-     * year (docname)
-     * week (docname)
-     * TeamAPos1 r5c1
-     * TeamAPos2 r6c1
-     * TeamAPos3 ...
-     * TeamAPos4
-     * TeamAPos5
-     * TeamAPos6
-     * TeamAPos7
-     * TeamAPos8
-     * TeamAPos9 r13c1
-     * TeamABN1
-     * TeamABN2
-     * TeamABN3
-     * TeamABN4
-     * TeamABN5
-     * TeamABN6
-     * TeamABN7
-     * TeamABN8
-     */
+    console.log(`Game Log: ${finalGameLog}`);
+
+    const putParams = {
+      Bucket: bucketName,
+      Key: `${year}/${week}`,
+      Body: finalGameLog,
+      ContentType: 'application/json'
+    };
+    const putObjectCommand = new PutObjectCommand(putParams);
+    await s3Client.send(putObjectCommand);
+
+    // try {
+    //   await s3.putObject(putParams).promise();
+    // } catch (err) {
+    //   console.log(err)
+    // }
   }
 };
